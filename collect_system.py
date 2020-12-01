@@ -62,10 +62,10 @@ for message in id_lists:
     conf_ip=message[2]
     service_ip=message[1].split('.')
     conf_ip=message[2].split('.')
-    tun_ips[message[0]]='114.114.%s.114'%service_ip[2]#,service_ip[2])
+    tun_ips[message[0]]='114.114.%s.114'%conf_ip[2]#,service_ip[2])
     last_ping[message[0]]=0
-    subnet_a="192.168.%s.1" %conf_ip[2]
-    subnet_b="10.240.%s.1"%conf_ip[2]
+    subnet_a="192.168.%s.1" %service_ip[2]
+    subnet_b="10.240.%s.1"%service_ip[2]
     sql = "insert into simple_status values(0,'%s','%s','%s','0','%s','%s');" % (device_id,message[1],message[2],subnet_a,subnet_b)
     #print(sql)
     db_insert_update_del(cursor, sql)
