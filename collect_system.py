@@ -31,26 +31,31 @@ def db_insert_update_del(cursor, sql):
         db.rollback()
 
 #连接数据库
-try:
-    db = pymysql.connect(
-        host=db_host,
-        port=db_port,
-        user=db_user,
-        password=db_password,
-        db=db_name
-    )
-except:
-    print('mysql数据库连接失败.\n程序退出')
-    exit()
+def db_connect():
+    try:
+        db = pymysql.connect(
+            host=db_host,
+            port=db_port,
+            user=db_user,
+            password=db_password,
+            db=db_name
+        )
+        return db
+    except:
+        print('mysql数据库连接失败.\n程序退出')
+        exit()
+db=db_connect()
 cursor = db.cursor()
 #初始化train_other_info
 #cursor.execute('delete from train_other_info;')
 cursor.execute('select device_id,service_ip,conf_ip from deviceinfo;')
 id_lists = cursor.fetchall()
+db.commit()
 # ids = {}
 # for train_id in id_lists:
 #     ids[train_id[0]] = train_id[1]
 #     #print(ids)
+conf_ips={}
 tun_ips={}
 last_ping={}
 sql = 'delete from simple_status'
@@ -58,10 +63,9 @@ db_insert_update_del(cursor, sql)
 for message in id_lists:
     print(message)
     device_id=message[0]
-    service_ip=message[1]
-    conf_ip=message[2]
     service_ip=message[1].split('.')
     conf_ip=message[2].split('.')
+    conf_ips[message[0]]=message[2]
     tun_ips[message[0]]='114.114.%s.114'%conf_ip[2]#,service_ip[2])
     last_ping[message[0]]=0
     subnet_a="192.168.%s.1" %service_ip[2]
@@ -82,7 +86,7 @@ while True:
             if ping !=last_ping[device_id]:
                 sql = "update simple_status set online_flag = 0 where device_id = '%s';" % device_id
                 db_insert_update_del(cursor, sql)
-                print(sql)
+                #print(sql)
             # if ping != last_ping[train_id]:
             #     off = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             #     sql = "delete from train_connectivity where train_id='%s' and offline_time is null;" % train_id
@@ -106,7 +110,7 @@ while True:
             if ping !=last_ping[device_id]:
                 sql = "update simple_status set online_flag = 1 where device_id = '%s';" % device_id
                 db_insert_update_del(cursor, sql)
-                print(sql)
+                #print(sql)
             # if ping != last_ping[train_id]:
             #     cursor = db.cursor()
             #     sql = "select * from train_connectivity where train_id='%s' and offline_time is null;" % train_id
@@ -120,9 +124,37 @@ while True:
             #         sql = "insert into train_connectivity(train_id, online_time) values('%s', '%s');" % (train_id, online_time[train_id])
             #         db_insert_update_del(cursor, sql)
         last_ping[device_id] = ping
+    db = db_connect()
+    cursor = db.cursor()
+    cursor.execute('select device_id,service_ip,conf_ip from deviceinfo;')
+    aaa = cursor.fetchall()
+    db.commit
+    aaa1 = list(zip(*aaa))[0]
+    print(aaa)
+    print(conf_ips)
+    for b in list(conf_ips):
+        if b not in aaa1:
+            print(b)
+            print(tun_ips)
+            tun_ips.pop(b)
+            print(tun_ips)
+            conf_ips.pop(b)
+            last_ping.pop(b)
+            sql = "delete from simple_status where device_id = '%s'" % b
+            db_insert_update_del(cursor, sql)
+    for a in aaa:
+        if a[0] not in conf_ips:
+            conf_ips[a[0]] = a[2]
+            last_ping[a[0]] = 0
+            service_ip = a[1].split('.')
+            conf_ip = a[2].split('.')
+            tun_ips[a[0]] = '114.114.%s.114' % conf_ip[2]  # ,service_ip[2])
+            subnet_a = "192.168.%s.1" % service_ip[2]
+            subnet_b = "10.240.%s.1" % service_ip[2]
+            sql = "insert into simple_status values(0,'%s','%s','%s','0','%s','%s');" % (a[0], a[1], a[2], subnet_a, subnet_b)
+            db_insert_update_del(cursor, sql)
     time.sleep(ping_interval)
 db.close()
-
 
 # #两对参数，分别用于公共更新和单独车辆更新
 # oldFileNames="1"
